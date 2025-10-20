@@ -1,0 +1,10 @@
+langchain
+qdrant-client
+psycopg2-binary
+pdfplumber
+transformers
+sentence-transformers
+qwen-embedding
+fastapi
+uvicorn
+python-dotenv
