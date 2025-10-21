@@ -1,19 +1,28 @@
-# Wrapper PostgreSQL client
-import psycopg2
 
-class PostgresClient:
-    def __init__(self, dbname, user, password, host='localhost', port=5432):
-        self.conn = psycopg2.connect(dbname=dbname, user=user, password=password, host=host, port=port)
+from sqlalchemy import create_engine, Column, Integer, Text, String
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-    def insert_chunk(self, source_file, chunk_text, chunk_index):
-        with self.conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO pdf_chunks (source_file, chunk_text, chunk_index)
-                VALUES (%s, %s, %s)
-            """, (source_file, chunk_text, chunk_index))
-            self.conn.commit()
+Base = declarative_base()
 
-    def fetch_chunks(self, source_file):
-        with self.conn.cursor() as cur:
-            cur.execute("SELECT chunk_text FROM pdf_chunks WHERE source_file = %s ORDER BY chunk_index", (source_file,))
-            return [row[0] for row in cur.fetchall()]
+class Chunk(Base):
+    __tablename__ = "chunks"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    content = Column(Text)
+    source = Column(String)
+
+def save_chunks_to_postgres(chunks, db_url="postgresql://jdih_user:jdih_pass@localhost:5432/jdih_db"):
+    engine = create_engine(db_url)
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    for chunk in chunks:
+        chunk_obj = Chunk(content=chunk.page_content, source=str(chunk.metadata.get("source", "")))
+        session.add(chunk_obj)
+    session.commit()
+    session.close()
+
+if __name__ == "__main__":
+    from chunk_pdf import chunk_pdf
+    chunks = chunk_pdf("data/view.pdf")  # Path diperbaiki
+    save_chunks_to_postgres(chunks)
+    print("Chunks berhasil disimpan ke PostgreSQL.")
